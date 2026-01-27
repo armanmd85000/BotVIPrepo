@@ -293,7 +293,7 @@ async def drm_handler(bot: Client, m: Message):
          
             elif "https://cpvod.testbook.com/" in url or "classplusapp.com/drm/" in url:
                 url = url.replace("https://cpvod.testbook.com/","https://media-cdn.classplusapp.com/drm/")
-                url = f"https://head-micheline-botupdatevip-f1804c58.koyeb.app/get_keys?url={url}@botupdatevip4u&user_id={user_id}"
+                url = f"https://cptest-ecru.vercel.app/ITsGOLU_OFFICIAL?url={url}"
                 result = helper.get_mps_and_keys2(url)
                 if result is None:
                     await m.reply_text(f"❌ Token failed. Trying next one...")
@@ -323,7 +323,7 @@ async def drm_handler(bot: Client, m: Message):
             
             elif 'media-cdn.classplusapp.com' in url or "media-cdn.classplusapp.com" in url and ("cc/" in url or "lc/" in url or "tencent/" in url or "drm/" in url) or'media-cdn-alisg.classplusapp.com' in url or 'media-cdn-a.classplusapp.com' in url : 
                 url = url.replace("https://cpvod.testbook.com/","https://media-cdn.classplusapp.com/drm/")
-                url = f"https://head-micheline-botupdatevip-f1804c58.koyeb.app/get_keys?url={url}@botupdatevip4u&user_id={user_id}"
+                url = f"https://cptest-ecru.vercel.app/ITsGOLU_OFFICIAL?url={url}"
                 result = helper.get_mps_and_keys2(url)
                 if result is None:
                     await m.reply_text(f"❌ Token failed. Trying next one...")

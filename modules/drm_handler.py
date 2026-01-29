@@ -295,13 +295,21 @@ async def drm_handler(bot: Client, m: Message):
                 url = url.replace("https://cpvod.testbook.com/","https://media-cdn.classplusapp.com/drm/")
                 url = f"https://cptest-ecru.vercel.app/ITsGOLU_OFFICIAL?url={url}"
                 result = helper.get_mps_and_keys2(url)
-                if result is None:
+                if result is None or result[0] is None:
                     await m.reply_text(f"❌ Token failed. Trying next one...")
-                    time.sleep(10)
+                    time.sleep(20)
                     result = helper.get_mps_and_keys2(url)                
-                mpd, keys = result
-                url = mpd
-                keys_string = " ".join([f"--key {key}" for key in keys])
+
+                if result and result[0]:
+                    mpd, keys = result
+                    url = mpd
+                    if keys:
+                        keys_string = " ".join([f"--key {key}" for key in keys])
+                    else:
+                        keys_string = ""
+                else:
+                    await m.reply_text("❌ Failed to get video details.")
+                    continue
 
             #elif "classplusapp" in url:
                 #signed_api = f"https://covercel.vercel.app/extract_keys?url={url}@bots_updatee&user_id={user_id}"

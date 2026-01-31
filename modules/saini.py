@@ -314,47 +314,65 @@ async def download_and_decrypt_video(url, cmd, name, key):
             return None  
 
 async def send_vid(bot: Client, m: Message, cc, filename, vidwatermark, thumb, name, prog, channel_id):
-    subprocess.run(f'ffmpeg -i "{filename}" -ss 00:00:10 -vframes 1 "{filename}.jpg"', shell=True)
-    await prog.delete (True)
-    reply1 = await bot.send_message(channel_id, f"**📩 Uploading Video 📩:-**\n<blockquote>**{name}**</blockquote>")
-    reply = await m.reply_text(f"**Generate Thumbnail:**\n<blockquote>**{name}**</blockquote>")
-
-    thumbnail = None
     try:
-        if thumb == "/d":
-            if os.path.exists(f"{filename}.jpg"):
-                thumbnail = f"{filename}.jpg"
-            else:
-                thumbnail = None
-        else:
-            thumbnail = thumb  
+        temp_thumb = None
+        thumbnail = thumb
         
-        if vidwatermark == "/d":
-            w_filename = f"{filename}"
-        else:
-            w_filename = f"w_{filename}"
-            font_path = "vidwater.ttf"
+        # Ensure downloads directory exists
+        if not os.path.exists("downloads"):
+            os.makedirs("downloads")
+
+        if thumb in ["/d", "no"] or not os.path.exists(thumb):
+            temp_thumb = f"downloads/thumb_{os.path.basename(filename)}.jpg"
+
+            # Generate thumbnail at 10s
             subprocess.run(
-                f'ffmpeg -i "{filename}" -vf "drawtext=fontfile={font_path}:text=\'{vidwatermark}\':fontcolor=white@0.3:fontsize=h/6:x=(w-text_w)/2:y=(h-text_h)/2" -codec:a copy "{w_filename}"',
+                f'ffmpeg -i "{filename}" -ss 00:00:10 -vframes 1 -q:v 2 -y "{temp_thumb}"',
                 shell=True
             )
             
+            thumbnail = temp_thumb if os.path.exists(temp_thumb) else None
+
+        await prog.delete(True)
+        reply1 = await bot.send_message(channel_id, f"**📩 Uploading Video 📩:-**\n<blockquote>**{name}**</blockquote>")
+        reply = await m.reply_text(f"**Generate Thumbnail:**\n<blockquote>**{name}**</blockquote>")
+
+        w_filename = filename
+        try:
+            if vidwatermark != "/d":
+                w_filename = f"w_{filename}"
+                font_path = "vidwater.ttf"
+                subprocess.run(
+                    f'ffmpeg -i "{filename}" -vf "drawtext=fontfile={font_path}:text=\'{vidwatermark}\':fontcolor=white@0.3:fontsize=h/6:x=(w-text_w)/2:y=(h-text_h)/2" -codec:a copy "{w_filename}"',
+                    shell=True
+                )
+                if not os.path.exists(w_filename):
+                    w_filename = filename
+        except Exception as e:
+            await m.reply_text(str(e))
+            w_filename = filename
+
+        dur = int(duration(w_filename))
+        start_time = time.time()
+
+        try:
+            await bot.send_video(channel_id, w_filename, caption=cc, supports_streaming=True, height=720, width=1280, thumb=thumbnail, duration=dur, progress=progress_bar, progress_args=(reply, start_time))
+        except Exception as e:
+            print(f"Failed to send video: {e}")
+            await bot.send_document(channel_id, w_filename, caption=cc, progress=progress_bar, progress_args=(reply, start_time))
+
+        if w_filename != filename and os.path.exists(w_filename):
+            os.remove(w_filename)
+
+        await reply.delete(True)
+        await reply1.delete(True)
+
+        # Cleanup generated thumbnail
+        if temp_thumb and os.path.exists(temp_thumb):
+            os.remove(temp_thumb)
+
     except Exception as e:
-        await m.reply_text(str(e))
-        w_filename = f"{filename}"
-
-    dur = int(duration(w_filename))
-    start_time = time.time()
-
-    try:
-        await bot.send_video(channel_id, w_filename, caption=cc, supports_streaming=True, height=720, width=1280, thumb=thumbnail, duration=dur, progress=progress_bar, progress_args=(reply, start_time))
-    except Exception as e:
-        print(f"Failed to send video: {e}")
-        await bot.send_document(channel_id, w_filename, caption=cc, progress=progress_bar, progress_args=(reply, start_time))
-
-    if os.path.exists(w_filename):
-        os.remove(w_filename)
-    await reply.delete(True)
-    await reply1.delete(True)
-    if os.path.exists(f"{filename}.jpg"):
-        os.remove(f"{filename}.jpg")
+        await m.reply_text(f"Error in send_vid: {e}")
+        if os.path.exists(filename):
+            # Attempt cleanup even on failure if logical
+            pass

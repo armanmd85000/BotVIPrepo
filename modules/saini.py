@@ -318,9 +318,14 @@ async def send_vid(bot: Client, m: Message, cc, filename, vidwatermark, thumb, n
     await prog.delete (True)
     reply1 = await bot.send_message(channel_id, f"**📩 Uploading Video 📩:-**\n<blockquote>**{name}**</blockquote>")
     reply = await m.reply_text(f"**Generate Thumbnail:**\n<blockquote>**{name}**</blockquote>")
+
+    thumbnail = None
     try:
         if thumb == "/d":
-            thumbnail = f"{filename}.jpg"
+            if os.path.exists(f"{filename}.jpg"):
+                thumbnail = f"{filename}.jpg"
+            else:
+                thumbnail = None
         else:
             thumbnail = thumb  
         
@@ -336,15 +341,20 @@ async def send_vid(bot: Client, m: Message, cc, filename, vidwatermark, thumb, n
             
     except Exception as e:
         await m.reply_text(str(e))
+        w_filename = f"{filename}"
 
     dur = int(duration(w_filename))
     start_time = time.time()
 
     try:
         await bot.send_video(channel_id, w_filename, caption=cc, supports_streaming=True, height=720, width=1280, thumb=thumbnail, duration=dur, progress=progress_bar, progress_args=(reply, start_time))
-    except Exception:
+    except Exception as e:
+        print(f"Failed to send video: {e}")
         await bot.send_document(channel_id, w_filename, caption=cc, progress=progress_bar, progress_args=(reply, start_time))
-    os.remove(w_filename)
+
+    if os.path.exists(w_filename):
+        os.remove(w_filename)
     await reply.delete(True)
     await reply1.delete(True)
-    os.remove(f"{filename}.jpg")
+    if os.path.exists(f"{filename}.jpg"):
+        os.remove(f"{filename}.jpg")

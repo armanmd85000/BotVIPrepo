@@ -22,12 +22,19 @@ from Crypto.Util.Padding import unpad
 from base64 import b64decode
 
 def duration(filename):
-    result = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
-                             "format=duration", "-of",
-                             "default=noprint_wrappers=1:nokey=1", filename],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT)
-    return float(result.stdout)
+    try:
+        result = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
+                                 "format=duration", "-of",
+                                 "default=noprint_wrappers=1:nokey=1", filename],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT)
+        if result.stdout:
+            return float(result.stdout)
+        else:
+            return 0.0
+    except Exception as e:
+        print(f"Error getting duration: {e}")
+        return 0.0
 
 def get_mps_and_keys(api_url):
     response = requests.get(api_url)

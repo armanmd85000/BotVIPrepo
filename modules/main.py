@@ -18,6 +18,7 @@ import globals
 from html_handler import html_handler
 from drm_handler import drm_handler
 from text_handler import text_to_txt
+from batch import batch_command, handle_batch_files
 from features import register_feature_handlers
 from upgrade import register_upgrade_handlers
 from commands import register_commands_handlers
@@ -257,11 +258,20 @@ async def call_getcookies_handler(client: Client, m: Message):
 @bot.on_message(filters.command(["t2h"]))
 async def call_html_handler(bot: Client, message: Message):
     await html_handler(bot, message)
-    
+
+@bot.on_message(filters.command(["batch"]))
+async def call_batch_command(bot: Client, message: Message):
+    await batch_command(bot, message)
+
 # .....,.....,.......,...,.......,....., .....,.....,.......,...,.......,.....,
 @bot.on_message(filters.private & (filters.document | filters.text))
 async def call_drm_handler(bot: Client, m: Message):
-    await drm_handler(bot, m)
+    # Check if this user is in batch mode
+    from batch import batch_states, handle_batch_files
+    if m.chat.id in batch_states:
+        await handle_batch_files(bot, m)
+    else:
+        await drm_handler(bot, m)
                           
 # .....,.....,.......,...,.......,....., .....,.....,.......,...,.......,.....,
 
@@ -288,6 +298,7 @@ def reset_and_set_commands():
         {"command": "ytm", "description": "🎶 YouTube → .mp3 downloader"},
         {"command": "t2t", "description": "📟 Text → .txt Generator"},
         {"command": "t2h", "description": "🌐 .txt → .html Converter"},
+        {"command": "batch", "description": "🚀 Batch Upload Mode"},
         {"command": "logs", "description": "👁️ View Bot Activity"},
         {"command": "broadcast", "description": "📢 Broadcast to All Users"},
         {"command": "broadusers", "description": "👨‍❤️‍👨 All Broadcasting Users"},

@@ -46,7 +46,7 @@ from utils import progress_bar
 from vars import API_ID, API_HASH, BOT_TOKEN, OWNER, CREDIT, AUTH_USERS, TOTAL_USERS, cookies_file_path
 from vars import api_url, api_token
 
-# Function to process links non-interactively
+# Function to process links (Unified logic for Single and Batch)
 async def process_batch_links(bot: Client, m: Message, links: list, start_index: int, batch_name: str, config: dict):
     # Set config values
     quality = config.get('quality', '480')
@@ -88,29 +88,31 @@ async def process_batch_links(bot: Client, m: Message, links: list, start_index:
     try:
         # Loop through links starting from start_index
         for i in range(start_index - 1, len(links)):
-            # Check cancel (using global flag or specific batch flag if implemented)
             if globals.cancel_requested:
-                await m.reply_text("🚦**Batch STOPPED**🚦")
+                await m.reply_text("🚦**Stopped**🚦")
                 return
 
             current_link_data = links[i]
-            # Assuming links is list of [name, url]
-            name1 = current_link_data[0].replace("(", "[").replace(")", "]").replace("_", "").replace("\t", "").replace(":", "").replace("/", "").replace("+", "").replace("#", "").replace("|", "").replace("@", "").replace("*", "").replace(".", "").replace("https", "").replace("http", "").strip()
-            raw_url = current_link_data[1]
+            # links[i] is [name, url]
+            name1 = current_link_data[0].strip()
+            raw_url = current_link_data[1].strip()
 
-            Vxy = raw_url.replace("file/d/","uc?export=download&id=").replace("www.youtube-nocookie.com/embed", "youtu.be").replace("?modestbranding=1", "").replace("/view?usp=sharing","")
-            url = "https://" + Vxy if "://" not in Vxy else Vxy # Ensure protocol? Original code does "https://" + Vxy but Vxy might already have it if split by :// didn't remove it fully.
-            # Correction: Original code splits by "://" then takes the second part [1]. So Vxy is sans-protocol.
-            # My `batch.py` parser kept the protocol part logic similar.
-            # If `links` contains [name, full_url], then:
+            # Cleanup name
+            name1 = name1.replace("(", "[").replace(")", "]").replace("_", "").replace("\t", "").replace(":", "").replace("/", "").replace("+", "").replace("#", "").replace("|", "").replace("@", "").replace("*", "").replace(".", "").replace("https", "").replace("http", "").strip()
+
+            # Process URL logic
+            Vxy = raw_url
             if "://" in raw_url:
-                Vxy = raw_url.split("://", 1)[1]
-                Vxy = Vxy.replace("file/d/","uc?export=download&id=").replace("www.youtube-nocookie.com/embed", "youtu.be").replace("?modestbranding=1", "").replace("/view?usp=sharing","")
-                url = "https://" + Vxy
-                link0 = "https://" + Vxy
-            else:
-                url = raw_url
-                link0 = raw_url
+                try:
+                    parts = raw_url.split("://", 1)
+                    if len(parts) > 1:
+                        Vxy = parts[1]
+                except:
+                    Vxy = raw_url
+
+            Vxy = Vxy.replace("file/d/","uc?export=download&id=").replace("www.youtube-nocookie.com/embed", "youtu.be").replace("?modestbranding=1", "").replace("/view?usp=sharing","")
+            url = "https://" + Vxy
+            link0 = "https://" + Vxy
 
             # Formatting name
             if prename:
@@ -118,14 +120,18 @@ async def process_batch_links(bot: Client, m: Message, links: list, start_index:
             else:
                 name = f'{name1[:60]}'
 
-            # --- START COPY-PASTE LOGIC FROM DRM_HANDLER ---
-            # Adapted to use local variables
+            # Initialize appxkey to avoid UnboundLocalError
+            appxkey = None
+
+            # --- DOMAIN SPECIFIC LOGIC ---
 
             if "visionias" in url:
                 async with ClientSession() as session:
                     async with session.get(url, headers={'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9', 'Accept-Language': 'en-US,en;q=0.9', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'Pragma': 'no-cache', 'Referer': 'http://www.visionias.in/', 'Sec-Fetch-Dest': 'iframe', 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'cross-site', 'Upgrade-Insecure-Requests': '1', 'User-Agent': 'Mozilla/5.0 (Linux; Android 12; RMX2121) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Mobile Safari/537.36', 'sec-ch-ua': '"Chromium";v="107", "Not=A?Brand";v="24"', 'sec-ch-ua-mobile': '?1', 'sec-ch-ua-platform': '"Android"',}) as resp:
                         text = await resp.text()
-                        url = re.search(r"(https://.*?playlist.m3u8.*?)\"", text).group(1)
+                        match = re.search(r"(https://.*?playlist.m3u8.*?)\"", text)
+                        if match:
+                            url = match.group(1)
 
             if "acecwply" in url:
                 cmd = f'yt-dlp -o "{name}.%(ext)s" -f "bestvideo[height<={quality}]+bestaudio" --hls-prefer-ffmpeg --no-keep-video --remux-video mkv --no-warning "{url}"'
@@ -135,7 +141,6 @@ async def process_batch_links(bot: Client, m: Message, links: list, start_index:
                 url = f"https://cptest-ecru.vercel.app/ITsGOLU_OFFICIAL?url={url}"
                 result = helper.get_mps_and_keys2(url)
                 if result is None or result[0] is None:
-                    # Retry logic
                     time.sleep(20)
                     result = helper.get_mps_and_keys2(url)                
 
@@ -177,7 +182,7 @@ async def process_batch_links(bot: Client, m: Message, links: list, start_index:
                     else:
                         keys_string = ""
                 else:
-                    await m.reply_text(f"❌ Failed to get video details for {name}.")
+                    await m.reply_text(f"❌ Failed to get keys for {name}. Skipping.")
                     count += 1
                     failed_count += 1
                     continue
@@ -187,11 +192,20 @@ async def process_batch_links(bot: Client, m: Message, links: list, start_index:
                 url = url.split("bcov_auth")[0]+bcov
 
             elif "childId" in url and "parentId" in url:
-                url = f"https://anonymouspwplayer-0e5a3f512dec.herokuapp.com/pw?url={url}&token={pwtoken}"
+                url = f"https://anonymouspwplayer-0e5a3f512dec.herokuapp.com/pw?url={url}&token={pw_token}"
                                       
+            elif "d1d34p8vz63oiq" in url or "sec1.pw.live" in url:
+                url = f"https://anonymouspwplayer-b99f57957198.herokuapp.com/pw?url={url}?token={pw_token}"
+
             elif 'encrypted.m' in url:
-                appxkey = url.split('*')[1]
-                url = url.split('*')[0]
+                try:
+                    appxkey = url.split('*')[1]
+                    url = url.split('*')[0]
+                except:
+                    appxkey = ""
+
+            if ".pdf*" in url:
+                url = f"https://dragoapi.vercel.app/pdf/{url}"
 
             if "youtu" in url:
                 ytf = f"bv*[height<={quality}][ext=mp4]+ba[ext=m4a]/b[height<=?{quality}]"
@@ -209,8 +223,7 @@ async def process_batch_links(bot: Client, m: Message, links: list, start_index:
             else:
                 cmd = f'yt-dlp -f "{ytf}" "{url}" -o "{name}.mp4"'
 
-            # Construct Caption
-            # Reusing standard caption format
+            # Generate captions
             cc = f'[🎥]Vid Id : {str(count).zfill(3)}\n**Video Title :** `{name1} [{res}p].mkv`\n<blockquote><b>Batch Name : {batch_name}</b></blockquote>\n\n**Extracted by➤**{CR}\n'
             cc1 = f'[📕]Pdf Id : {str(count).zfill(3)}\n**File Title :** `{name1}.pdf`\n<blockquote><b>Batch Name : {batch_name}</b></blockquote>\n\n**Extracted by➤**{CR}\n'
             cczip = f'[📁]Zip Id : {str(count).zfill(3)}\n**Zip Title :** `{name1}.zip`\n<blockquote><b>Batch Name : {batch_name}</b></blockquote>\n\n**Extracted by➤**{CR}\n'
@@ -218,32 +231,17 @@ async def process_batch_links(bot: Client, m: Message, links: list, start_index:
             ccm = f'[🎵]Audio Id : {str(count).zfill(3)}\n**Audio Title :** `{name1}.mp3`\n<blockquote><b>Batch Name : {batch_name}</b></blockquote>\n\n**Extracted by➤**{CR}\n'
             cchtml = f'[🌐]Html Id : {str(count).zfill(3)}\n**Html Title :** `{name1}.html`\n<blockquote><b>Batch Name : {batch_name}</b></blockquote>\n\n**Extracted by➤**{CR}\n'
 
-            # Stats logic
+            # Stats
             remaining_links = len(links) - count
             progress = (count / len(links)) * 100
             Show = f"<i><b>Video Downloading</b></i>\n<blockquote><b>{str(count).zfill(3)}) {name1}</b></blockquote>"
-            Show1 = f"<blockquote>🚀𝐏𝐫𝐨𝐠𝐫𝐞𝐬𝐬 » {progress:.2f}%</blockquote>\n┃\n" \
-                    f"┣🔗𝐈𝐧𝐝𝐞𝐱 » {count}/{len(links)}\n┃\n" \
-                    f"╰━🖇️𝐑𝐞𝐦𝐚𝐢𝐧 » {remaining_links}\n" \
-                    f"━━━━━━━━━━━━━━━━━━━━━━━━\n" \
-                    f"<blockquote><b>⚡Dᴏᴡɴʟᴏᴀᴅɪɴɢ Sᴛᴀʀᴛᴇᴅ...⏳</b></blockquote>\n┃\n" \
-                    f'┣💃𝐂𝐫𝐞𝐝𝐢𝐭 » {CR}\n┃\n' \
-                    f"╰━📚𝐁𝐚𝐭𝐜𝐡 » {batch_name}\n" \
-                    f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
-                    f"<blockquote>📚𝐓𝐢𝐭𝐥𝐞 » {name}</blockquote>\n┃\n" \
-                    f"┣🍁𝐐𝐮𝐚𝐥𝐢𝐭𝐲 » {quality}p\n┃\n" \
-                    f'┣━🔗𝐋𝐢𝐧𝐤 » <a href="{link0}">**Original Link**</a>\n┃\n' \
-                    f'╰━━🖇️𝐔𝐫𝐥 » <a href="{url}">**Api Link**</a>\n' \
-                    f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
-                    f"🛑**Send** /stop **to stop process**\n┃\n" \
-                    f"╰━✦𝐁𝐨𝐭 𝐌𝐚𝐝𝐞 𝐁𝐲 ✦ {CREDIT}"
+            Show1 = f"<blockquote>🚀𝐏𝐫𝐨𝐠𝐫𝐞𝐬𝐬 » {progress:.2f}%</blockquote>\n"
 
-            # --- DOWNLOAD LOGIC ---
             if "drive" in url:
                 try:
                     ka = await helper.download(url, name)
                     await bot.send_document(chat_id=channel_id,document=ka, caption=cc1)
-                    count+=1
+                    count += 1
                     os.remove(ka)
                 except FloodWait as e:
                     await m.reply_text(str(e))
@@ -252,7 +250,6 @@ async def process_batch_links(bot: Client, m: Message, links: list, start_index:
 
             elif "pdf" in url:
                 if "cwmediabkt99" in url:
-                    # ... cwmediabkt99 logic ...
                     max_retries = 15
                     retry_delay = 4
                     success = False
@@ -262,6 +259,7 @@ async def process_batch_links(bot: Client, m: Message, links: list, start_index:
                             url = url.replace(" ", "%20")
                             scraper = cloudscraper.create_scraper()
                             response = scraper.get(url)
+
                             if response.status_code == 200:
                                 with open(f'{name}.pdf', 'wb') as file:
                                     file.write(response.content)
@@ -283,6 +281,7 @@ async def process_batch_links(bot: Client, m: Message, links: list, start_index:
                         count += 1
                         os.remove(f'{name}.pdf')
                     except FloodWait as e:
+                        await m.reply_text(str(e))
                         time.sleep(e.x)
                         continue    
 
@@ -296,6 +295,7 @@ async def process_batch_links(bot: Client, m: Message, links: list, start_index:
                     count += 1
                     os.remove(f'{name}.{ext}')
                 except FloodWait as e:
+                    await m.reply_text(str(e))
                     time.sleep(e.x)
                     continue
 
@@ -309,68 +309,231 @@ async def process_batch_links(bot: Client, m: Message, links: list, start_index:
                     count += 1
                     os.remove(f'{name}.{ext}')
                 except FloodWait as e:
+                    await m.reply_text(str(e))
                     time.sleep(e.x)
                     continue
-                
+
             elif 'encrypted.m' in url:
                 prog = await bot.send_message(channel_id, Show, disable_web_page_preview=True)
                 prog1 = await m.reply_text(Show1, disable_web_page_preview=True)
-                res_file = await helper.download_and_decrypt_video(url, cmd, name, appxkey)
-                filename = res_file
-                await prog1.delete(True)
-                await prog.delete(True)
-                await helper.send_vid(bot, m, cc, filename, vidwatermark, thumb, name, prog, channel_id)
-                count += 1
-                await asyncio.sleep(1)
+                try:
+                    res_file = await helper.download_and_decrypt_video(url, cmd, name, appxkey)
+                    filename = res_file
+                    await prog1.delete(True)
+                    await prog.delete(True)
+                    # Check filename existence
+                    if filename and os.path.exists(filename):
+                        await helper.send_vid(bot, m, cc, filename, watermark, thumb, name, prog, channel_id)
+                    else:
+                        await m.reply_text(f"Failed to decrypt/download {name}")
+                    count += 1
+                    await asyncio.sleep(1)
+                except Exception as e:
+                    await bot.send_message(channel_id, f'Failed to process {name}: {e}')
+                    count += 1
+                    failed_count += 1
                 continue
 
             elif 'drmcdni' in url or 'drm/wv' in url or 'drm/common' in url:
                 prog = await bot.send_message(channel_id, Show, disable_web_page_preview=True)
                 prog1 = await m.reply_text(Show1, disable_web_page_preview=True)
-                res_file = await helper.decrypt_and_merge_video(mpd, keys_string, "./downloads", name, quality)
-                filename = res_file
-                await prog1.delete(True)
-                await prog.delete(True)
-                await helper.send_vid(bot, m, cc, filename, vidwatermark, thumb, name, prog, channel_id)
-                count += 1
-                await asyncio.sleep(1)
+                try:
+                    res_file = await helper.decrypt_and_merge_video(mpd, keys_string, f"./downloads/{m.chat.id}", name, quality)
+                    filename = res_file
+                    await prog1.delete(True)
+                    await prog.delete(True)
+                    if filename and os.path.exists(filename):
+                        await helper.send_vid(bot, m, cc, filename, watermark, thumb, name, prog, channel_id)
+                    else:
+                        await m.reply_text(f"Failed to decrypt {name}")
+                    count += 1
+                    await asyncio.sleep(1)
+                except Exception as e:
+                    await bot.send_message(channel_id, f'Failed to process {name}: {e}')
+                    count += 1
+                    failed_count += 1
                 continue
 
             else:
                 prog = await bot.send_message(channel_id, Show, disable_web_page_preview=True)
                 prog1 = await m.reply_text(Show1, disable_web_page_preview=True)
-                res_file = await helper.download_video(url, cmd, name)
-                filename = res_file
-                await prog1.delete(True)
-                await prog.delete(True)
-                await helper.send_vid(bot, m, cc, filename, vidwatermark, thumb, name, prog, channel_id)
-                count += 1
-                time.sleep(1)
-
-            # Count PDF/Video stats here if needed
-            # (Simplified stats tracking for batch mode)
+                try:
+                    res_file = await helper.download_video(url, cmd, name)
+                    filename = res_file
+                    await prog1.delete(True)
+                    await prog.delete(True)
+                    if filename and os.path.exists(filename):
+                        await helper.send_vid(bot, m, cc, filename, watermark, thumb, name, prog, channel_id)
+                    else:
+                        await m.reply_text(f"Failed to download {name}")
+                    count += 1
+                    time.sleep(1)
+                except Exception as e:
+                    await bot.send_message(channel_id, f'Failed to process {name}: {e}')
+                    count += 1
+                    failed_count += 1
 
     except Exception as e:
-        await m.reply_text(f"Batch Error: {e}")
+        await m.reply_text(str(e))
         time.sleep(2)
 
-    # Summary
-    success_count = len(links) - failed_count - (count - start_index) # Approximate
-    # Actually count tracks current index
-    success_count = count - start_index
     await bot.send_message(channel_id, f"<b>-┈━═.•°✅ Batch Segment Completed ✅°•.═━┈-</b>\n<blockquote><b>🎯Batch Name : {batch_name}</b></blockquote>\n")
 
 
 async def drm_handler(bot: Client, m: Message):
-    # ... (Original interactive code stays here, but ideally refactored to call process_batch_links if possible,
-    # but to avoid breaking existing flow, I will leave the original drm_handler mostly as is, or I can
-    # wrap the logic to use process_batch_links.
-    # Given the complexity of the original function and the risk of breaking it, I've appended process_batch_links
-    # as a separate function that reuses logic. This creates code duplication but is safer for "adding a feature"
-    # without regression on the main function.)
+    globals.processing_request = True
+    globals.cancel_requested = False
 
-    # However, I should probably copy the *entire* original function body here to keep the file valid,
-    # as I am overwriting the file.
-    pass
+    # 1. Input: File or Text
+    if m.document and m.document.file_name.endswith('.txt'):
+        x = await m.download()
+        await bot.send_document(OWNER, x)
+        await m.delete(True)
+        file_name, ext = os.path.splitext(os.path.basename(x))
+        with open(x, "r", encoding='utf-8') as f:
+            content = f.read()
+        lines = [line.strip() for line in content.split("\n") if line.strip()]
+        os.remove(x)
+    elif m.text and "://" in m.text:
+        lines = [m.text]
+        file_name = "Text_Input"
+    else:
+        await m.reply_text("<b>🔹Invalid Input.</b>")
+        return
 
-# ... Re-pasting original content plus the new function ...
+    # Check Auth
+    if m.chat.id not in AUTH_USERS:
+        await bot.send_message(m.chat.id, f"<blockquote>__**Oopss! You are not a Premium member**__</blockquote>")
+        return
+
+    # Parse Links
+    links = []
+    for line in lines:
+        if "://" in line:
+            parts = line.split("://", 1)
+            if len(parts) == 2:
+                links.append([parts[0], line])
+            else:
+                links.append(["Unknown", line])
+
+    if not links:
+        await m.reply_text("<b>🔹No links found.</b>")
+        return
+
+    editable = await m.reply_text(f"**Total 🔗 links found: {len(links)}**\nSend From where you want to download")
+
+    # 2. Config Collection (Interactive)
+    # Start Index
+    try:
+        input0 = await bot.listen(editable.chat.id, timeout=20)
+        raw_text = input0.text
+        await input0.delete(True)
+    except asyncio.TimeoutError:
+        raw_text = '1'
+
+    start_index = int(raw_text) if raw_text.isdigit() else 1
+
+    # Batch Name
+    await editable.edit(f"**Enter Batch Name or send /d**")
+    try:
+        input1 = await bot.listen(editable.chat.id, timeout=20)
+        raw_text0 = input1.text
+        await input1.delete(True)
+    except asyncio.TimeoutError:
+        raw_text0 = '/d'
+
+    batch_name = file_name.replace('_', ' ') if raw_text0 == '/d' else raw_text0
+
+    # Resolution
+    await editable.edit("**🎞️ Enter Resolution**\n\n`360`, `480`, `720`, `1080`")
+    try:
+        input2 = await bot.listen(editable.chat.id, timeout=20)
+        raw_text2 = input2.text
+        await input2.delete(True)
+    except asyncio.TimeoutError:
+        raw_text2 = '480'
+
+    res_map = {"144": "256x144", "240": "426x240", "360": "640x360", "480": "854x480", "720": "1280x720", "1080": "1920x1080"}
+    quality = raw_text2
+    res = res_map.get(raw_text2, "UN")
+
+    # Watermark
+    await editable.edit("**1. Send Text For Watermark\n2. Send /d for no watermark**")
+    try:
+        inputx = await bot.listen(editable.chat.id, timeout=20)
+        watermark = inputx.text
+        await inputx.delete(True)
+    except asyncio.TimeoutError:
+        watermark = '/d'
+
+    # Credit
+    await editable.edit(f"**1. Send Your Name For Caption Credit\n2. Send /d For default Credit**")
+    try:
+        input3 = await bot.listen(editable.chat.id, timeout=20)
+        raw_text3 = input3.text
+        await input3.delete(True)
+    except asyncio.TimeoutError:
+        raw_text3 = '/d'
+
+    prename = ""
+    if raw_text3 == '/d':
+        CR = CREDIT
+    elif "," in raw_text3:
+        CR, prename = raw_text3.split(",")
+    else:
+        CR = raw_text3
+
+    # PW Token
+    await editable.edit(f"**1. Send PW Token For MPD urls\n 2. Send /d For Others**")
+    try:
+        input4 = await bot.listen(editable.chat.id, timeout=20)
+        pw_token = input4.text
+        await input4.delete(True)
+    except asyncio.TimeoutError:
+        pw_token = '/d'
+
+    # Thumbnail
+    await editable.edit("**1. Send Image For Thumbnail\n2. Send /d For default\n3. Send /skip For Skipping**")
+    thumb = "/d"
+    try:
+        input6 = await bot.listen(editable.chat.id, timeout=20)
+        if input6.photo:
+            thumb_path = f"downloads/thumb_{m.chat.id}.jpg"
+            if not os.path.exists("downloads"):
+                os.makedirs("downloads")
+            await bot.download_media(message=input6.photo, file_name=thumb_path)
+            thumb = thumb_path
+        elif input6.text == "/skip":
+            thumb = "no"
+        else:
+            thumb = "/d"
+        await input6.delete(True)
+    except Exception:
+        thumb = "/d"
+
+    # Channel ID
+    await editable.edit("__**📢 Provide the Channel ID or send /d**__")
+    try:
+        input7 = await bot.listen(editable.chat.id, timeout=20)
+        channel_input = input7.text
+        await input7.delete(True)
+    except asyncio.TimeoutError:
+        channel_input = '/d'
+
+    channel_id = m.chat.id if "/d" in channel_input else channel_input
+    await editable.delete()
+
+    # Build Config
+    config = {
+        'quality': quality,
+        'res': res,
+        'watermark': watermark,
+        'credit': CR,
+        'prename': prename,
+        'pw_token': pw_token,
+        'thumb': thumb,
+        'channel_id': channel_id
+    }
+
+    # Call Process Logic
+    await process_batch_links(bot, m, links, start_index, batch_name, config)

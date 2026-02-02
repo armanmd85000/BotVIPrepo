@@ -2,9 +2,14 @@ from pyrogram import Client, filters
 from pyrogram.types import Message
 import os
 import asyncio
-from modules import drm_handler
-from modules.utils import progress_bar
-from modules.vars import AUTH_USERS, OWNER, CREDIT
+try:
+    from modules import drm_handler
+    from modules.utils import progress_bar
+    from modules.vars import AUTH_USERS, OWNER, CREDIT
+except ImportError:
+    import drm_handler
+    from utils import progress_bar
+    from vars import AUTH_USERS, OWNER, CREDIT
 
 # Global dictionary to store batch states
 batch_states = {}

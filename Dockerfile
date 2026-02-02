@@ -9,6 +9,8 @@ COPY . .
 
 # Install necessary dependencies
 RUN apk add --no-cache \
+    bash \
+    python3 \
     gcc \
     libffi-dev \
     musl-dev \

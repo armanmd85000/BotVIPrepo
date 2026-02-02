@@ -1,1 +1,1 @@
-worker: /usr/local/bin/python modules/main.py
+worker: python3 modules/main.py

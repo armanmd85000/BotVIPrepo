@@ -11,6 +11,7 @@ COPY . .
 RUN apk add --no-cache \
     bash \
     python3 \
+    py3-pip \
     gcc \
     libffi-dev \
     musl-dev \
@@ -19,6 +20,7 @@ RUN apk add --no-cache \
     make \
     g++ \
     cmake && \
+    ln -sf /usr/bin/python3 /usr/bin/python && \
     wget -q https://github.com/axiomatic-systems/Bento4/archive/v1.6.0-639.zip && \
     unzip v1.6.0-639.zip && \
     cd Bento4-1.6.0-639 && \
@@ -36,5 +38,5 @@ RUN pip3 install --no-cache-dir --upgrade pip \
     && python3 -m pip install -U yt-dlp
 
 # Set the command to run the application
-CMD ["sh", "-c", "gunicorn app:app & python modules/main.py"]
+CMD ["sh", "-c", "gunicorn app:app & python3 modules/main.py"]
 

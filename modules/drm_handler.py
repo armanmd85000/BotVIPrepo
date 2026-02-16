@@ -217,11 +217,11 @@ async def process_batch_links(bot: Client, m: Message, links: list, start_index:
          
             elif "https://cpvod.testbook.com/" in url or "classplusapp.com/drm/" in url:
                 url = url.replace("https://cpvod.testbook.com/","https://media-cdn.classplusapp.com/drm/")
-                url = f"https://cptest-ecru.vercel.app/ITsGOLU_OFFICIAL?url={url}"
-                result = helper.get_mps_and_keys2(url)
+                api_req_url = f"{api_url}/get_keys?url={url}@botupdatevip4u&user_id={m.from_user.id}&token={api_token}"
+                result = helper.get_mps_and_keys2(api_req_url)
                 if result is None or result[0] is None:
                     time.sleep(20)
-                    result = helper.get_mps_and_keys2(url)                
+                    result = helper.get_mps_and_keys2(api_req_url)
 
                 if result and result[0]:
                     mpd, keys = result
@@ -237,21 +237,17 @@ async def process_batch_links(bot: Client, m: Message, links: list, start_index:
                     continue
 
             elif 'videos.classplusapp' in url or "tencdn.classplusapp" in url or "webvideos.classplusapp.com" in url:
-                result = helper.get_mps_and_keys3(url)
-                if result is None:
-                    time.sleep(10)
-                    result = helper.get_mps_and_keys3(url)
-                mpd = result    
-                mpd = helper.get_mps_and_keys3(url) 
+                api_req_url = f"{api_url}/get_keys?url={url}@botupdatevip4u&user_id={m.from_user.id}&token={api_token}"
+                mpd = helper.get_mps_and_keys3(api_req_url)
                 url = mpd
 
             elif 'media-cdn.classplusapp.com' in url or "media-cdn.classplusapp.com" in url and ("cc/" in url or "lc/" in url or "tencent/" in url or "drm/" in url) or'media-cdn-alisg.classplusapp.com' in url or 'media-cdn-a.classplusapp.com' in url : 
                 url = url.replace("https://cpvod.testbook.com/","https://media-cdn.classplusapp.com/drm/")
-                url = f"https://cptest-ecru.vercel.app/ITsGOLU_OFFICIAL?url={url}"
-                result = helper.get_mps_and_keys2(url)
+                api_req_url = f"{api_url}/get_keys?url={url}@botupdatevip4u&user_id={m.from_user.id}&token={api_token}"
+                result = helper.get_mps_and_keys2(api_req_url)
                 if result is None or result[0] is None:
                     time.sleep(20)
-                    result = helper.get_mps_and_keys2(url)                
+                    result = helper.get_mps_and_keys2(api_req_url)
 
                 if result and result[0]:
                     mpd, keys = result

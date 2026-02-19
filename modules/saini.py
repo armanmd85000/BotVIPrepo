@@ -56,7 +56,6 @@ def get_mps_and_keys3(api_url):
     mpd = response_json.get('url')
     return mpd
 
-
 def exec(cmd):
         process = subprocess.run(cmd, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         output = process.stdout.decode()

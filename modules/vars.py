@@ -22,4 +22,5 @@ if int(OWNER) not in AUTH_USERS:
 # .....,.....,.......,...,.......,....., .....,.....,.......,...,.......,.....,
 api_url = "https://head-micheline-botupdatevip-f1804c58.koyeb.app"
 api_token = "162zCU8mXkpXQX6G4ky"
+API_USER_ID = "1621539522"
 # .....,.....,.......,...,.......,....., .....,.....,.......,...,.

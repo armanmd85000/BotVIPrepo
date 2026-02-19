@@ -44,7 +44,7 @@ from text_handler import text_to_txt
 from youtube_handler import ytm_handler, y2t_handler, getcookies_handler, cookies_handler
 from utils import progress_bar
 from vars import API_ID, API_HASH, BOT_TOKEN, OWNER, CREDIT, AUTH_USERS, TOTAL_USERS, cookies_file_path
-from vars import api_url, api_token
+from vars import api_url, api_token, API_USER_ID
 
 # Helper function for failure messages
 async def send_failure_msg(bot, chat_id, name, url, error_msg):
@@ -217,7 +217,7 @@ async def process_batch_links(bot: Client, m: Message, links: list, start_index:
          
             elif "https://cpvod.testbook.com/" in url or "classplusapp.com/drm/" in url:
                 url = url.replace("https://cpvod.testbook.com/","https://media-cdn.classplusapp.com/drm/")
-                api_req_url = f"{api_url}/get_keys?url={url}@botupdatevip4u&user_id={m.from_user.id}&token={api_token}"
+                api_req_url = f"{api_url}/get_keys?url={url}@botupdatevip4u&user_id={API_USER_ID}&token={api_token}"
                 result = helper.get_mps_and_keys2(api_req_url)
                 if result is None or result[0] is None:
                     time.sleep(20)
@@ -237,13 +237,13 @@ async def process_batch_links(bot: Client, m: Message, links: list, start_index:
                     continue
 
             elif 'videos.classplusapp' in url or "tencdn.classplusapp" in url or "webvideos.classplusapp.com" in url:
-                api_req_url = f"{api_url}/get_keys?url={url}@botupdatevip4u&user_id={m.from_user.id}&token={api_token}"
+                api_req_url = f"{api_url}/get_keys?url={url}@botupdatevip4u&user_id={API_USER_ID}&token={api_token}"
                 mpd = helper.get_mps_and_keys3(api_req_url)
                 url = mpd
 
             elif 'media-cdn.classplusapp.com' in url or "media-cdn.classplusapp.com" in url and ("cc/" in url or "lc/" in url or "tencent/" in url or "drm/" in url) or'media-cdn-alisg.classplusapp.com' in url or 'media-cdn-a.classplusapp.com' in url : 
                 url = url.replace("https://cpvod.testbook.com/","https://media-cdn.classplusapp.com/drm/")
-                api_req_url = f"{api_url}/get_keys?url={url}@botupdatevip4u&user_id={m.from_user.id}&token={api_token}"
+                api_req_url = f"{api_url}/get_keys?url={url}@botupdatevip4u&user_id={API_USER_ID}&token={api_token}"
                 result = helper.get_mps_and_keys2(api_req_url)
                 if result is None or result[0] is None:
                     time.sleep(20)

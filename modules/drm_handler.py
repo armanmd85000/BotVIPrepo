@@ -266,6 +266,9 @@ async def drm_handler(bot: Client, m: Message):
         name = f'{str(count).zfill(3)}) {name1[:60]}'
         namef = f'{name1[:60]}'
 
+        keys_string = ""
+        appxkey = ""
+
         # --- LOGIC INTEGRATION ---
 
         try:

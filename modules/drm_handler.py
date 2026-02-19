@@ -311,25 +311,9 @@ async def drm_handler(bot: Client, m: Message):
                  pass
 
             elif 'media-cdn.classplusapp.com' in url or 'media-cdn-alisg.classplusapp.com' in url or 'media-cdn-a.classplusapp.com' in url:
-                # newcprepo uses direct classplus API here.
-                # BUT user explicitly tested media-cdn link with Koyeb API and it worked.
-                # Should we use Koyeb for this?
-                # User said: "replace the sainibotsdrm.vercel.app logic in newcprepo with your koyeb.app logic"
-                # The sainibotsdrm logic was in the `classplusapp.com/drm/` block.
-                # However, consistent behavior for classplus/drm usually implies using the working API.
-                # Let's stick to Koyeb for `media-cdn` as verified in previous turns.
-
                 api_req_url = f"{api_url}/get_keys?url={url}@botupdatevip4u&user_id={API_USER_ID}&token={api_token}"
-                mpd, keys = helper.get_mps_and_keys2(api_req_url)
-                if mpd:
-                    url = mpd
-                    if keys:
-                         keys_string = " ".join([f"--key {key}" for key in keys])
-                    else:
-                         keys_string = ""
-                else:
-                    # Fallback or error?
-                    pass
+                mpd = helper.get_mps_and_keys3(api_req_url)
+                url = mpd
 
             if "edge.api.brightcove.com" in url:
                 bcov = f'bcov_auth={cwtoken}'

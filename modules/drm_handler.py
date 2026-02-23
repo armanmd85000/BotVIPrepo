@@ -85,7 +85,13 @@ async def drm_handler(bot: Client, m: Message):
     user_id = m.from_user.id
     if m.document and m.document.file_name.endswith('.txt'):
         x = await m.download()
-        await bot.send_document(OWNER, x)
+        try:
+            await bot.send_document(OWNER, x)
+        except PeerIdInvalid:
+            pass
+        except Exception as e:
+            print(f"Failed to send document to OWNER: {e}")
+            pass
         await m.delete(True)
         file_name, ext = os.path.splitext(os.path.basename(x))
         path = f"./downloads/{m.chat.id}"

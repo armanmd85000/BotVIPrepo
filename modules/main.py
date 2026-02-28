@@ -266,11 +266,17 @@ async def call_batch_command(bot: Client, message: Message):
 # .....,.....,.......,...,.......,....., .....,.....,.......,...,.......,.....,
 @bot.on_message(filters.private & (filters.document | filters.text))
 async def call_drm_handler(bot: Client, m: Message):
-    # Check if this user is in batch mode
+    # Check if this user is in batch mode (from existing repo logic)
+    # The new repo logic handles batching inside drm_handler itself if m.document is sent.
+    # However, existing repo had a dedicated /batch command.
+    # We should probably prioritize the new drm_handler logic which seems more unified.
+    # But let's check if the user is in the middle of a /batch command state.
+
     from batch import batch_states, handle_batch_files
     if m.chat.id in batch_states:
         await handle_batch_files(bot, m)
     else:
+        # Pass to the new unified drm_handler
         await drm_handler(bot, m)
                           
 # .....,.....,.......,...,.......,....., .....,.....,.......,...,.......,.....,

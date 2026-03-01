@@ -9,6 +9,9 @@ COPY . .
 
 # Install necessary dependencies
 RUN apk add --no-cache \
+    bash \
+    python3 \
+    py3-pip \
     gcc \
     libffi-dev \
     musl-dev \
@@ -17,6 +20,7 @@ RUN apk add --no-cache \
     make \
     g++ \
     cmake && \
+    ln -sf /usr/bin/python3 /usr/bin/python && \
     wget -q https://github.com/axiomatic-systems/Bento4/archive/v1.6.0-639.zip && \
     unzip v1.6.0-639.zip && \
     cd Bento4-1.6.0-639 && \

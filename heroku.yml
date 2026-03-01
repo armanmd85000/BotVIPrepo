@@ -6,4 +6,3 @@ run:
 
   # for heroku deployment...add this bulidpack.  
 #  https://github.com/heroku/heroku-buildpack-activestorage-preview
-

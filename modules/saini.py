@@ -22,12 +22,19 @@ from Crypto.Util.Padding import unpad
 from base64 import b64decode
 
 def duration(filename):
-    result = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
-                             "format=duration", "-of",
-                             "default=noprint_wrappers=1:nokey=1", filename],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT)
-    return float(result.stdout)
+    try:
+        result = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
+                                 "format=duration", "-of",
+                                 "default=noprint_wrappers=1:nokey=1", filename],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT)
+        if result.stdout:
+            return float(result.stdout)
+        else:
+            return 0.0
+    except Exception as e:
+        print(f"Error getting duration: {e}")
+        return 0.0
 
 def get_mps_and_keys(api_url):
     response = requests.get(api_url)
@@ -37,11 +44,20 @@ def get_mps_and_keys(api_url):
     return mpd, keys
 
 def get_mps_and_keys2(api_url):
-    response = requests.get(api_url) 
-    response_json = response.json()
-    mpd = response_json.get('mpd_url')
-    keys = response_json.get('keys')
-    return mpd, keys
+    try:
+        response = requests.get(api_url, timeout=30)
+        response.raise_for_status()
+        response_json = response.json()
+        if 'url' in response_json:
+            mpd = response_json['url']
+            keys = response_json.get('keys')
+            return mpd, keys
+        mpd = response_json.get('mpd_url')
+        keys = response_json.get('keys')
+        return mpd, keys
+    except Exception as e:
+        print(f"Error in get_mps_and_keys2: {e}")
+        return None, None
     
 def get_mps_and_keys3(api_url):
     response = requests.get(api_url)   
@@ -298,37 +314,65 @@ async def download_and_decrypt_video(url, cmd, name, key):
             return None  
 
 async def send_vid(bot: Client, m: Message, cc, filename, vidwatermark, thumb, name, prog, channel_id):
-    subprocess.run(f'ffmpeg -i "{filename}" -ss 00:00:10 -vframes 1 "{filename}.jpg"', shell=True)
-    await prog.delete (True)
-    reply1 = await bot.send_message(channel_id, f"**📩 Uploading Video 📩:-**\n<blockquote>**{name}**</blockquote>")
-    reply = await m.reply_text(f"**Generate Thumbnail:**\n<blockquote>**{name}**</blockquote>")
     try:
-        if thumb == "/d":
-            thumbnail = f"{filename}.jpg"
-        else:
-            thumbnail = thumb  
+        temp_thumb = None
+        thumbnail = thumb
         
-        if vidwatermark == "/d":
-            w_filename = f"{filename}"
-        else:
-            w_filename = f"w_{filename}"
-            font_path = "vidwater.ttf"
+        # Ensure downloads directory exists
+        if not os.path.exists("downloads"):
+            os.makedirs("downloads")
+
+        if thumb in ["/d", "no"] or not os.path.exists(thumb):
+            temp_thumb = f"downloads/thumb_{os.path.basename(filename)}.jpg"
+
+            # Generate thumbnail at 10s
             subprocess.run(
-                f'ffmpeg -i "{filename}" -vf "drawtext=fontfile={font_path}:text=\'{vidwatermark}\':fontcolor=white@0.3:fontsize=h/6:x=(w-text_w)/2:y=(h-text_h)/2" -codec:a copy "{w_filename}"',
+                f'ffmpeg -i "{filename}" -ss 00:00:10 -vframes 1 -q:v 2 -y "{temp_thumb}"',
                 shell=True
             )
             
+            thumbnail = temp_thumb if os.path.exists(temp_thumb) else None
+
+        await prog.delete(True)
+        reply1 = await bot.send_message(channel_id, f"**📩 Uploading Video 📩:-**\n<blockquote>**{name}**</blockquote>")
+        reply = await m.reply_text(f"**Generate Thumbnail:**\n<blockquote>**{name}**</blockquote>")
+
+        w_filename = filename
+        try:
+            if vidwatermark != "/d":
+                w_filename = f"w_{filename}"
+                font_path = "vidwater.ttf"
+                subprocess.run(
+                    f'ffmpeg -i "{filename}" -vf "drawtext=fontfile={font_path}:text=\'{vidwatermark}\':fontcolor=white@0.3:fontsize=h/6:x=(w-text_w)/2:y=(h-text_h)/2" -codec:a copy "{w_filename}"',
+                    shell=True
+                )
+                if not os.path.exists(w_filename):
+                    w_filename = filename
+        except Exception as e:
+            await m.reply_text(str(e))
+            w_filename = filename
+
+        dur = int(duration(w_filename))
+        start_time = time.time()
+
+        try:
+            await bot.send_video(channel_id, w_filename, caption=cc, supports_streaming=True, height=720, width=1280, thumb=thumbnail, duration=dur, progress=progress_bar, progress_args=(reply, start_time))
+        except Exception as e:
+            print(f"Failed to send video: {e}")
+            await bot.send_document(channel_id, w_filename, caption=cc, progress=progress_bar, progress_args=(reply, start_time))
+
+        if w_filename != filename and os.path.exists(w_filename):
+            os.remove(w_filename)
+
+        await reply.delete(True)
+        await reply1.delete(True)
+
+        # Cleanup generated thumbnail
+        if temp_thumb and os.path.exists(temp_thumb):
+            os.remove(temp_thumb)
+
     except Exception as e:
-        await m.reply_text(str(e))
-
-    dur = int(duration(w_filename))
-    start_time = time.time()
-
-    try:
-        await bot.send_video(channel_id, w_filename, caption=cc, supports_streaming=True, height=720, width=1280, thumb=thumbnail, duration=dur, progress=progress_bar, progress_args=(reply, start_time))
-    except Exception:
-        await bot.send_document(channel_id, w_filename, caption=cc, progress=progress_bar, progress_args=(reply, start_time))
-    os.remove(w_filename)
-    await reply.delete(True)
-    await reply1.delete(True)
-    os.remove(f"{filename}.jpg")
+        await m.reply_text(f"Error in send_vid: {e}")
+        if os.path.exists(filename):
+            # Attempt cleanup even on failure if logical
+            pass

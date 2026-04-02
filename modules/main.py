@@ -18,6 +18,7 @@ import globals
 from html_handler import html_handler
 from drm_handler import drm_handler
 from text_handler import text_to_txt
+from mindvalley import mindvalley_handler
 from features import register_feature_handlers
 from upgrade import register_upgrade_handlers
 from commands import register_commands_handlers
@@ -254,6 +255,10 @@ async def call_getcookies_handler(client: Client, m: Message):
     await getcookies_handler(client, m)
 
 #...............…........# .....,.....,.......,...,.......,....., .....,.....,.......,...,.......,.....,
+@bot.on_message(filters.command("mindvalley"))
+async def call_mindvalley(bot: Client, m: Message):
+    await mindvalley_handler(bot, m)
+
 @bot.on_message(filters.command(["t2h"]))
 async def call_html_handler(bot: Client, message: Message):
     await html_handler(bot, message)
